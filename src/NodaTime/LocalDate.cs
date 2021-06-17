@@ -240,6 +240,18 @@ namespace NodaTime
             return new LocalDate(days, calendar);
         }
 
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Converts a <see cref="DateOnly"/> to a <see cref="LocalDate"/> in the ISO calendar.
+        /// </summary>
+        /// <param name="date">The <see cref="DateOnly"/> to convert.</param>
+        /// <returns>A new <see cref="LocalDate"/> in the ISO calendar with the same year, month and day as the <paramref name="date"/>.</returns>
+        public static LocalDate FromDateOnly(DateOnly date)
+        {
+            return new LocalDate(date.Year, date.Month, date.Day);
+        }
+#endif
+
         /// <summary>
         /// Returns the local date corresponding to the given "week year", "week of week year", and "day of week"
         /// in the ISO calendar system, using the ISO week-year rules.

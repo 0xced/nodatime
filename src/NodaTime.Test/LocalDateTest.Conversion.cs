@@ -76,5 +76,34 @@ namespace NodaTime.Test
             LocalDate start = new LocalDate(1, 1, 1);
             Assert.Throws<ArgumentOutOfRangeException>(() => start.WithCalendar(CalendarSystem.PersianSimple));
         }
+
+#if NET6_0_OR_GREATER
+        [Test]
+        public void FromDateOnly()
+        {
+            var date = new DateOnly(2011, 6, 29);
+            var expected = new LocalDate(2011, 6, 29);
+            var actual = LocalDate.FromDateOnly(date);
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void FromMinDateOnly()
+        {
+            var date = DateOnly.MinValue;
+            var expected = new LocalDate(1, 1, 1);
+            var actual = LocalDate.FromDateOnly(date);
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void FromMaxDateOnly()
+        {
+            var date = DateOnly.MaxValue;
+            var expected = new LocalDate(9999, 12, 31);
+            var actual = LocalDate.FromDateOnly(date);
+            Assert.AreEqual(expected, actual);
+        }
+#endif
     }
 }
