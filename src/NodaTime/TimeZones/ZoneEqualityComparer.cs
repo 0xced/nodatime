@@ -263,8 +263,16 @@ namespace NodaTime.TimeZones
                 }
             }
 
-            public bool Equals(ZoneInterval x, ZoneInterval y)
+            public bool Equals(ZoneInterval? x, ZoneInterval? y)
             {
+                if (x is null && y is null)
+                {
+                    return true;
+                }
+                if (x is null || y is null)
+                {
+                    return false;
+                }
                 if (!EqualExceptStartAndEnd(x, y))
                 {
                     return false;
