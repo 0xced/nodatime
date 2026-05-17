@@ -90,14 +90,22 @@ namespace NodaTime.TzdbCompiler
         private static WindowsZones LoadWindowsZones(CompilerOptions options, string targetTzdbVersion)
         {
             var mappingPath = options.WindowsMapping!;
+
             if (File.Exists(mappingPath))
             {
                 return CldrWindowsZonesParser.Parse(mappingPath);
             }
-            if (!Directory.Exists(mappingPath))
+
+            if (Directory.Exists(mappingPath))
             {
-                throw new Exception($"{mappingPath} does not exist as either a file or a directory");
+                return ParseDirectory(mappingPath, targetTzdbVersion);
             }
+
+            throw new Exception($"{mappingPath} does not exist as either a file or a directory");
+        }
+
+        private static WindowsZones ParseDirectory(string mappingPath, string targetTzdbVersion)
+        {
             var xmlFiles = Directory.GetFiles(mappingPath, "*.xml");
             if (xmlFiles.Length == 0)
             {
@@ -114,9 +122,7 @@ namespace NodaTime.TzdbCompiler
 
             var versions = string.Join(", ", allFiles.Select(pair => pair.zones.TzdbVersion).ToArray());
 
-            var bestFile = allFiles
-                .Where(pair => StringComparer.Ordinal.Compare(pair.zones.TzdbVersion, targetTzdbVersion) <= 0)
-                .FirstOrDefault();
+            var bestFile = allFiles.FirstOrDefault(pair => StringComparer.Ordinal.Compare(pair.zones.TzdbVersion, targetTzdbVersion) <= 0);
 
             if (bestFile.zones is null)
             {
