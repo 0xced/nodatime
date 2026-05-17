@@ -9,10 +9,14 @@ using NodaTime.TzdbCompiler.Tzdb;
 using NodaTime.Xml;
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using NodaTime.Tools.Common;
 
 namespace NodaTime.TzdbCompiler
 {
@@ -47,7 +51,7 @@ namespace NodaTime.TzdbCompiler
                 tzdb.GenerateDateTimeZone(options.ZoneId);
                 return 0;
             }
-            var windowsZones = LoadWindowsZones(options, tzdb.Version);
+            var windowsZones = await LoadWindowsZonesAsync(options, tzdb.Version);
             if (options.WindowsOverride != null)
             {
                 var overrideFile = CldrWindowsZonesParser.Parse(options.WindowsOverride);
@@ -87,9 +91,9 @@ namespace NodaTime.TzdbCompiler
         /// on the version of TZDB we're targeting - basically, the most recent one before or equal to the
         /// target version.
         /// </summary>
-        private static WindowsZones LoadWindowsZones(CompilerOptions options, string targetTzdbVersion)
+        private static async Task<WindowsZones> LoadWindowsZonesAsync(CompilerOptions options, string targetTzdbVersion)
         {
-            var mappingPath = options.WindowsMapping!;
+            var mappingPath = options.WindowsMapping;
 
             if (File.Exists(mappingPath))
             {
@@ -101,7 +105,53 @@ namespace NodaTime.TzdbCompiler
                 return ParseDirectory(mappingPath, targetTzdbVersion);
             }
 
-            throw new Exception($"{mappingPath} does not exist as either a file or a directory");
+            if (Uri.TryCreate(mappingPath, UriKind.Absolute, out var zipUri) && Path.GetExtension(zipUri.LocalPath) == ".zip")
+            {
+                return await ParseZipFileAsync(zipUri);
+            }
+
+            using var httpClient = new HttpClient();
+            var request = new HttpRequestMessage(HttpMethod.Head, "https://unicode.org/Public/cldr/latest/");
+            Console.WriteLine($"Retrieving the latest CLDR data from {request.RequestUri}");
+            var response = await httpClient.SendAsync(request);
+            if (response.Headers.Location != null)
+            {
+                var cldrVersion = new DirectoryInfo(response.Headers.Location.LocalPath).Name;
+                return await ParseZipFileAsync(new Uri(response.Headers.Location, $"cldr-common-{cldrVersion}.zip"));
+            }
+
+            throw new Exception($"Expected {request.RequestUri} to redirect to the latest CLDR version, but no Location HTTP header was present in the response.");
+        }
+
+        private static async Task<WindowsZones> ParseZipFileAsync(Uri zipUri)
+        {
+            Console.WriteLine($"Downloading {zipUri}");
+            await using var httpStream = await FileUtility.LoadFileOrUrlAsync(zipUri.AbsoluteUri);
+            await using var zipArchive = new ZipArchive(httpStream);
+            var entries = zipArchive.Entries.Where(e => e.Name == "windowsZones.xml").ToList();
+            if (entries.Count != 1)
+            {
+                throw new Exception($"{zipUri} contains {entries.Count} entries named windowsZones.xml");
+            }
+
+            // Buffer in memory because DeflateStream is not seekable
+            await using var stream = await entries[0].OpenAsync();
+            var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            // Write to a local windowsZones.xml file
+            memoryStream.Position = 0;
+            await using var localFile = CreateWindowsZonesLocalFile(zipUri);
+            await memoryStream.CopyToAsync(localFile);
+
+            memoryStream.Position = 0;
+            return CldrWindowsZonesParser.Parse(memoryStream, zipUri.LocalPath);
+        }
+
+        private static FileStream CreateWindowsZonesLocalFile(Uri zipUri, [CallerFilePath] string path = "")
+        {
+            var version = Path.GetFileNameWithoutExtension(zipUri.LocalPath).Replace("cldr-common-", "").Replace(".", "-");
+            return File.Create(Path.Combine(Path.GetDirectoryName(path)!, "..", "..", "data", "cldr", $"windowsZones-{version}.xml"));
         }
 
         private static WindowsZones ParseDirectory(string mappingPath, string targetTzdbVersion)

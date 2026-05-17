@@ -18,7 +18,7 @@ namespace NodaTime.TzdbCompiler
         [Option("s", "source", Required = true, HelpText = "Source directory or archive containing the TZDB input files.", MutuallyExclusiveSet = "Source")]
         public string? SourceDirectoryName { get; set; } = "";
 
-        [Option("w", "windows", Required = true, HelpText = "Windows to TZDB time zone mapping file (e.g. windowsZones.xml) or directory", MutuallyExclusiveSet = "Windows")]
+        [Option("w", "windows", Required = false, HelpText = "Windows to TZDB time zone mapping file (e.g. windowsZones.xml) or directory or URL to a cldr-common-*.zip file or unspecified to use the latest CLDR data", MutuallyExclusiveSet = "Windows")]
         public string? WindowsMapping { get; set; } = "";
 
         [Option(null, "windows-override", Required = false, HelpText = "Additional 'override' file providing extra Windows time zone mappings", MutuallyExclusiveSet = "WindowsOverride")]

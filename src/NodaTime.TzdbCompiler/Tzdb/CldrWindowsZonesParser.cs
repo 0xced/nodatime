@@ -34,12 +34,19 @@ namespace NodaTime.TzdbCompiler.Tzdb
 
         internal static WindowsZones Parse(string file) => Parse(LoadFile(file), file);
 
+        internal static WindowsZones Parse(Stream stream, string file) => Parse(LoadStream(stream), file);
+
         private static XDocument LoadFile(string file)
+        {
+            using var stream = File.OpenRead(file);
+            return LoadStream(stream);
+        }
+
+        private static XDocument LoadStream(Stream stream)
         {
             // These settings allow the XML parser to ignore the DOCTYPE element
             var readerSettings = new XmlReaderSettings() { DtdProcessing = DtdProcessing.Ignore };
-            using (var reader = File.OpenRead(file))
-            using (var xmlReader = XmlReader.Create(reader, readerSettings))
+            using (var xmlReader = XmlReader.Create(stream, readerSettings))
             {
                 return XDocument.Load(xmlReader);
             }
@@ -47,7 +54,7 @@ namespace NodaTime.TzdbCompiler.Tzdb
 
         private static string FindVersion(XElement root, string file)
         {
-            var cldrVersion = Path.GetFileNameWithoutExtension(file).Replace("windowsZones-", "").Replace("-", ".");
+            var cldrVersion = Path.GetFileNameWithoutExtension(file).Replace("windowsZones-", "").Replace("cldr-common-", "").Replace("-", ".");
             if (decimal.TryParse(cldrVersion, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out _))
             {
                 return cldrVersion;
