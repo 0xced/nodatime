@@ -8,7 +8,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Net.Http;
 using System.Threading.Tasks;
 using NodaTime.Tools.Common;
 
@@ -22,6 +21,7 @@ namespace NodaTime.TzdbCompiler.Tzdb
     public class TzdbZoneInfoCompiler
     {
         private const string Makefile = "Makefile";
+        private const string Version = "version";
         private const string Zone1970TabFile = "zone1970.tab";
         private const string Iso3166TabFile = "iso3166.tab";
         private const string ZoneTabFile = "zone.tab";
@@ -136,6 +136,16 @@ namespace NodaTime.TzdbCompiler.Tzdb
 
         private string InferVersion(FileSource source)
         {
+            if (source.Contains(Version))
+            {
+                var versions = source.ReadLines(Version).ToList();
+                if (versions.Count == 1)
+                {
+                    var version = versions[0];
+                    log?.WriteLine($"Inferred version {version} from the {Version} file");
+                    return version;
+                }
+            }
             if (source.Contains(Makefile))
             {
                 foreach (var line in source.ReadLines(Makefile))
